@@ -11,9 +11,11 @@ PLATFORM_NAME = "Forescout"
 API_ENDPOINTS = {
     "hosts": "{}/api/hosts",  # Placeholder, needs verification
     "login": "{}/api/login",  # Placeholder
+    "detections": "{}/active-detections",
 }
 
 # Default Values
 DEFAULT_BATCH_SIZE = 100
 MAX_RETRIES = 3
 RETRY_BACKOFF = 1
+
