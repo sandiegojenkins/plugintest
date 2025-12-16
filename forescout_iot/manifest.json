@@ -4,7 +4,6 @@
     "version": "1.0.0",
     "description": "This plugin fetches host information from Forescout and ingests it into Netskope Cloud Exchange as IoT Assets.",
     "module": "IoT",
-    "minimum_version": "5.1.0",
     "mapping": "",
     "pull_supported": true,
     "push_supported": false,
@@ -44,4 +43,5 @@
             "description": "Enable or disable SSL certificate validation."
         }
     ]
+
 }
