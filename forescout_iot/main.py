@@ -69,12 +69,11 @@ class ForescoutPlugin(IotPluginBase):
         try:
             base_url = self.configuration.get("base_url", "").strip().rstrip("/")
             url = API_ENDPOINTS["hosts"].format(base_url)
-            api_token = self.configuration.get("api_token")
             
+            # Placeholder for headers/auth
             headers = {
-                "Authorization": api_token,
-                "User-Agent": f"{MODULE_NAME}-{self.plugin_name}/{self.plugin_version}",
-            } 
+                "Authorization": f"Bearer {self.configuration.get('api_token')}"
+            }
 
             response = self.forescout_helper.api_helper(
                 url=url,
@@ -85,10 +84,20 @@ class ForescoutPlugin(IotPluginBase):
                 logger_msg="fetching assets",
             )
             
-            if isinstance(response, dict):
-                response = response.get("hosts", [])
-
+            # DEBUG LOGGING
+            self.logger.info(f"{self.log_prefix}: Raw API Response: {response}")
+            
             assets = []
+            
+            # Handle different possible response structures
+            if isinstance(response, dict):
+                hosts = response.get("hosts", response.get("data", []))
+            elif isinstance(response, list):
+                hosts = response
+            else:
+                hosts = []
+                self.logger.error(f"{self.log_prefix}: Unexpected API response format: {type(response)}")
+
             for item in response:
                 asset = Asset(
                     mac_address=item.get("mac"),
@@ -125,4 +134,5 @@ class ForescoutPlugin(IotPluginBase):
              return ValidationResult(success=False, message="API Token is required.")
 
         return ValidationResult(success=True, message="Validation successful.")
+
 
