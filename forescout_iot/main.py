@@ -34,6 +34,7 @@ class ForescoutPlugin(IotPluginBase):
             *args,
             **kwargs,
         )
+        self.proxy = kwargs.get("proxy", {})
         self.plugin_name, self.plugin_version = self._get_plugin_info()
         self.log_prefix = f"{MODULE_NAME} {self.plugin_name} [{name}]"
         self.forescout_helper = ForescoutPluginHelper(
@@ -124,3 +125,4 @@ class ForescoutPlugin(IotPluginBase):
              return ValidationResult(success=False, message="API Token is required.")
 
         return ValidationResult(success=True, message="Validation successful.")
+
