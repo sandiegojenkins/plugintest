@@ -116,6 +116,7 @@ class ForescoutPlugin(IotPluginBase):
                     asset = Asset(
                         ip=ip_address,
                         hostname=hostname,
+                        source_id=entity_id,
                         use_asset=True
                     )
                     assets.append(asset)
