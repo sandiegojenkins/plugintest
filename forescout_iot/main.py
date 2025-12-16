@@ -2,6 +2,7 @@
 Forescout Plugin Main File.
 """
 
+import requests
 import traceback
 from typing import List, Dict, Tuple
 
@@ -68,7 +69,7 @@ class ForescoutPlugin(IotPluginBase):
         
         try:
             base_url = self.configuration.get("base_url", "").strip().rstrip("/")
-            url = API_ENDPOINTS["hosts"].format(base_url)
+            url = API_ENDPOINTS["detections"].format(base_url)
             
             # Placeholder for headers/auth
             headers = {
@@ -86,28 +87,38 @@ class ForescoutPlugin(IotPluginBase):
             
             # DEBUG LOGGING
             self.logger.info(f"{self.log_prefix}: Raw API Response: {response}")
-            
+
             assets = []
             
             # Handle different possible response structures
-            if isinstance(response, dict):
-                hosts = response.get("hosts", response.get("data", []))
-            elif isinstance(response, list):
-                hosts = response
+            if isinstance(response, list):
+                detections = response
+            elif isinstance(response, dict):
+                detections = response.get("detections", response.get("data", []))
             else:
-                hosts = []
+                detections = []
                 self.logger.error(f"{self.log_prefix}: Unexpected API response format: {type(response)}")
 
-            for item in response:
-                asset = Asset(
-                    mac_address=item.get("mac"),
-                    ip=item.get("ip"),
-                    hostname=item.get("hostname"),
-                    os=item.get("os"),
-                    manufacturer=item.get("vendor"),
-                    use_asset=True
-                )
-                assets.append(asset)
+            for item in detections:
+                # Map detection fields to Asset
+                entity_id = item.get("entity_id")
+                entity_type = item.get("entity_type", "").lower()
+                
+                ip_address = None
+                hostname = None
+                
+                if "ip" in entity_type:
+                    ip_address = entity_id
+                else:
+                    hostname = entity_id
+                    
+                if ip_address or hostname:
+                    asset = Asset(
+                        ip=ip_address,
+                        hostname=hostname,
+                        use_asset=True
+                    )
+                    assets.append(asset)
 
             self.logger.info(f"{self.log_prefix}: Successfully fetched {len(assets)} assets.")
             
@@ -115,6 +126,12 @@ class ForescoutPlugin(IotPluginBase):
             # (assets, is_first_page, is_last_page, count, total_count_placeholder)
             yield assets, True, True, len(assets), 0
 
+        except requests.exceptions.RequestException as exp:
+            self.logger.error(
+                message=f"{self.log_prefix}: API Error fetching assets: {exp}",
+                details=str(traceback.format_exc())
+            )
+            raise exp
         except Exception as exp:
             self.logger.error(
                 message=f"{self.log_prefix}: Error fetching assets: {exp}",
@@ -134,5 +151,3 @@ class ForescoutPlugin(IotPluginBase):
              return ValidationResult(success=False, message="API Token is required.")
 
         return ValidationResult(success=True, message="Validation successful.")
-
-
