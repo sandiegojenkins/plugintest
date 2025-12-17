@@ -73,8 +73,12 @@ class ForescoutPlugin(IotPluginBase):
             
             # Placeholder for headers/auth
             headers = {
-                "Authorization": f"Bearer {self.configuration.get('api_token')}"
+                "Authorization": f"Bearer {self.configuration.get('api_token')}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
             }
+
+            self.logger.info(f"{self.log_prefix}: Calling URL: {url}")
 
             response = self.forescout_helper.api_helper(
                 url=url,
