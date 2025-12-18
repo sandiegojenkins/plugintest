@@ -72,16 +72,9 @@ class ForescoutPlugin(IotPluginBase):
             url = API_ENDPOINTS["detections"].format(base_url)
             
             # Placeholder for headers/auth
-            api_token = self.configuration.get("api_token")
-            auth_header = f"Bearer {api_token}" if api_token.startswith("ey") else api_token
-
             headers = {
-                "Authorization": auth_header,
-                "Content-Type": "application/json",
-                "Accept": "application/json",
+                "Authorization": f"Bearer {self.configuration.get('api_token')}"
             }
-
-            self.logger.info(f"{self.log_prefix}: Calling URL: {url}")
 
             response = self.forescout_helper.api_helper(
                 url=url,
@@ -159,3 +152,4 @@ class ForescoutPlugin(IotPluginBase):
              return ValidationResult(success=False, message="API Token is required.")
 
         return ValidationResult(success=True, message="Validation successful.")
+
