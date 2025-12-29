@@ -126,10 +126,17 @@ class ForescoutPlugin(IotPluginBase):
                     
                     # We need at least an IP or MAC/Hostname to create an asset
                     if ip_address or mac_address:
-                         
+                        
+                        asset_tags = []
+                        if item.get("rem_function"):
+                             asset_tags.append(f"Function: {item.get('rem_function')}")
+                        if "risk_score" in item:
+                             asset_tags.append(f"Risk Score: {item.get('risk_score')}")
+
                         asset = Asset(
                             ip=ip_address,
-                            mac=mac_address,
+                            mac_address=mac_address,
+                            tags=asset_tags,
                             use_asset=True
                         )
                         
@@ -138,16 +145,11 @@ class ForescoutPlugin(IotPluginBase):
                             asset.os = item.get("rem_os")
                         
                         if item.get("rem_vendor"):
-                            asset.vendor = item.get("rem_vendor")
-                            
-                        # If risk_score is available
-                        if "risk_score" in item:
-                             if hasattr(asset, "risk_score"):
-                                 try:
-                                     asset.risk_score = float(item["risk_score"])
-                                 except (ValueError, TypeError):
-                                     pass
+                            asset.manufacturer = item.get("rem_vendor")
                         
+                        if item.get("rem_category"):
+                            asset.category = item.get("rem_category")
+                            
                         assets.append(asset)
                 
                 self.logger.info(f"{self.log_prefix}: Successfully fetched {len(assets)} assets from page {page_number}.")
