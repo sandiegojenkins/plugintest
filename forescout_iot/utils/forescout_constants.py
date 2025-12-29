@@ -11,12 +11,21 @@ PLATFORM_NAME = "Forescout"
 API_ENDPOINTS = {
     "hosts": "{}/api/hosts",  # Placeholder, needs verification
     "login": "{}/api/login",  # Placeholder
-    "detections": "{}/api/data-exchange/v3/active-detections",
+    "rem_assets": "{}/api/data-exchange/v3/rem-assets",
 }
 
 # Default Values
 DEFAULT_BATCH_SIZE = 100
 MAX_RETRIES = 3
 RETRY_BACKOFF = 1
+DEFAULT_LOOKBACK_MINS = 60
 
-
+REM_ASSET_FIELDS = [
+    "ip_addresses",
+    "mac_addresses",
+    "rem_category",
+    "rem_vendor",
+    "rem_os",
+    "rem_function",
+    "risk_score"
+]
