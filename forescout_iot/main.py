@@ -4,6 +4,7 @@ Forescout Plugin Main File.
 
 import requests
 import traceback
+import time
 from typing import List, Dict, Tuple
 
 from netskope.integrations.iot.models.asset import Asset
@@ -17,6 +18,8 @@ from .utils.forescout_constants import (
     PLUGIN_NAME,
     PLUGIN_VERSION,
     API_ENDPOINTS,
+    DEFAULT_LOOKBACK_MINS,
+    REM_ASSET_FIELDS,
 )
 from .utils.forescout_helper import ForescoutPluginHelper
 
@@ -66,66 +69,103 @@ class ForescoutPlugin(IotPluginBase):
     def pull(self):
         """Pull assets from Forescout."""
         self.logger.info(f"{self.log_prefix}: Fetching assets.")
-        
+
         try:
             base_url = self.configuration.get("base_url", "").strip().rstrip("/")
-            url = API_ENDPOINTS["detections"].format(base_url)
+            url = API_ENDPOINTS["rem_assets"].format(base_url)
             
-            # Placeholder for headers/auth
             headers = {
-                "Authorization": f"Bearer {self.configuration.get('api_token')}"
+                "Authorization": f"Bearer {self.configuration.get('api_token')}",
+                "Content-Type": "application/json"
             }
 
-            response = self.forescout_helper.api_helper(
-                url=url,
-                method="GET",
-                headers=headers,
-                proxies=self.proxy,
-                verify=self.ssl_validation,
-                logger_msg="fetching assets",
-            )
+            # Determine time window
+            current_time_ms = int(time.time() * 1000)
+            lookback_ms = DEFAULT_LOOKBACK_MINS * 60 * 1000
             
-            # DEBUG LOGGING
-            self.logger.info(f"{self.log_prefix}: Raw API Response: {response}")
-
-            assets = []
+            page_number = 0
+            has_more_data = True
             
-            # Handle different possible response structures
-            if isinstance(response, list):
-                detections = response
-            elif isinstance(response, dict):
-                detections = response.get("detections", response.get("data", []))
-            else:
-                detections = []
-                self.logger.error(f"{self.log_prefix}: Unexpected API response format: {type(response)}")
+            while has_more_data:
+                payload = {
+                     "from_utc_millis": current_time_ms - lookback_ms,
+                     "to_utc_millis": current_time_ms,
+                     "selected_fields": REM_ASSET_FIELDS,
+                     "page_number": page_number
+                }
+                
+                self.logger.info(f"{self.log_prefix}: Fetching page {page_number}.")
 
-            for item in detections:
-                # Map detection fields to Asset
-                entity_id = item.get("entity_id")
-                entity_type = item.get("entity_type", "").lower()
-                
-                ip_address = None
-                hostname = None
-                
-                if "ip" in entity_type:
-                    ip_address = entity_id
+                response = self.forescout_helper.api_helper(
+                    url=url,
+                    method="POST",
+                    headers=headers,
+                    proxies=self.proxy,
+                    verify=self.ssl_validation,
+                    logger_msg=f"fetching assets page {page_number}",
+                    json=payload
+                )
+
+                if isinstance(response, dict):
+                    results = response.get("results", [])
                 else:
-                    hostname = entity_id
-                    
-                if ip_address or hostname:
-                    asset = Asset(
-                        ip=ip_address,
-                        hostname=hostname,
-                        source_id=entity_id,
-                        use_asset=True
-                    )
-                    assets.append(asset)
+                    self.logger.error(f"{self.log_prefix}: Unexpected API response format: {type(response)}")
+                    results = []
 
-            self.logger.info(f"{self.log_prefix}: Successfully fetched {len(assets)} assets.")
-            
-            # Yield tuple as per IotPluginBase requirements
-            # (assets, is_first_page, is_last_page, count, total_count_placeholder)
-            yield assets, True, True, len(assets), 0
+                if not results:
+                    self.logger.info(f"{self.log_prefix}: No more results found on page {page_number}.")
+                    break
+
+                assets = []
+                for item in results:
+                    ip_list = item.get("ip_addresses", [])
+                    mac_list = item.get("mac_addresses", [])
+                    
+                    ip_address = ip_list[0] if ip_list else None
+                    mac_address = mac_list[0] if mac_list else None
+                    
+                    # We need at least an IP or MAC/Hostname to create an asset
+                    if ip_address or mac_address:
+                         
+                        asset = Asset(
+                            ip=ip_address,
+                            mac=mac_address,
+                            use_asset=True
+                        )
+                        
+                        # Add extended attributes
+                        if item.get("rem_os"):
+                            asset.os = item.get("rem_os")
+                        
+                        if item.get("rem_vendor"):
+                            asset.vendor = item.get("rem_vendor")
+                            
+                        # If risk_score is available
+                        if "risk_score" in item:
+                             if hasattr(asset, "risk_score"):
+                                 try:
+                                     asset.risk_score = float(item["risk_score"])
+                                 except (ValueError, TypeError):
+                                     pass
+                        
+                        assets.append(asset)
+                
+                self.logger.info(f"{self.log_prefix}: Successfully fetched {len(assets)} assets from page {page_number}.")
+                
+                # Yield tuple: (assets, is_first_page, is_last_page, count, total_count_placeholder)
+                # Since we don't know total count or if this is the last page definitively until we get empty results next time, defines logic here.
+                # Actually for this iterator pattern we can just yield.
+                # If we received less than we asked for (implied batch size), maybe we are done? 
+                # The API doesn't seem to document page size in the request provided, assuming server side default.
+                
+                yield assets, page_number == 0, False, len(assets), 0
+                
+                page_number += 1
+                
+                # Sanity check to prevent infinite loops if API is misbehaving
+                if page_number > 1000:
+                    self.logger.warning(f"{self.log_prefix}: Reached maximum page limit.")
+                    break
 
         except requests.exceptions.RequestException as exp:
             self.logger.error(
@@ -152,4 +192,3 @@ class ForescoutPlugin(IotPluginBase):
              return ValidationResult(success=False, message="API Token is required.")
 
         return ValidationResult(success=True, message="Validation successful.")
-
