@@ -1,0 +1,45 @@
+{
+    "name": "Crowdstrike",
+    "id": "crowdstrike",
+    "version": "1.0.0",
+    "description": "The Crowdstrike plugin fetches Threat IoCs from CrowdStrike's Endpoint detections and IOC management page. This plugin supports sharing the Threat IoCs to CrowdStrike's IOC management page.",
+    "push_supported": true,
+    "patch_supported": false,
+    "delete_supported": false,
+    "fetch_retraction_info": false,
+    "module": "CTE",
+    "configuration": [
+        {
+            "label": "Base URL",
+            "key": "base_url",
+            "type": "text",
+            "default": "https://api.crowdstrike.com",
+            "mandatory": true,
+            "description": "CrowdStrike API Base URL (e.g., https://api.crowdstrike.com)."
+        },
+        {
+            "label": "Client ID",
+            "key": "client_id",
+            "type": "text",
+            "default": "",
+            "mandatory": true,
+            "description": "Client ID for CrowdStrike API."
+        },
+        {
+            "label": "Client Secret",
+            "key": "client_secret",
+            "type": "password",
+            "default": "",
+            "mandatory": true,
+            "description": "Client Secret for CrowdStrike API."
+        },
+        {
+            "label": "Initial Range (in days)",
+            "key": "days",
+            "type": "number",
+            "mandatory": true,
+            "default": 7,
+            "description": "Number of days to pull the data for the initial run."
+        }
+    ]
+}
